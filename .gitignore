@@ -1,0 +1,7 @@
+history.json
+__pycache__/
+*.py[cod]
+venv/
+debug_output.txt
+.env
+uploads/
