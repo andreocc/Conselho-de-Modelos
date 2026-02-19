@@ -23,6 +23,7 @@ class GlobalState:
         self.vector_store = VectorStore()
         self.doc_loaded = False
         self.filename = None
+        self.full_text = None
 
 state = GlobalState()
 
@@ -63,10 +64,14 @@ def upload_url():
     
     try:
         text = DocumentProcessor.load_url(url)
+        text = DocumentProcessor.load_url(url)
         if text:
-            count = state.vector_store.add_document(text, url)
-            state.doc_loaded = True
+            # Store full text fallback
+            state.full_text = text
             state.filename = url
+            state.doc_loaded = True # Assume loaded even if embeddings fail, so we can use fallback
+            
+            count = state.vector_store.add_document(text, url)
             return jsonify({"success": True, "chunks": count, "filename": url})
         else:
             return jsonify({"error": "Could not extract text from URL"}), 400
@@ -101,9 +106,12 @@ def upload_file():
                 text = DocumentProcessor.load_txt(file_stream)
                 
             if text:
-                count = state.vector_store.add_document(text, filename)
-                state.doc_loaded = True
+                # Store full text fallback
+                state.full_text = text
                 state.filename = filename
+                state.doc_loaded = True # Assume loaded even if embeddings fail
+                
+                count = state.vector_store.add_document(text, filename)
                 return jsonify({"success": True, "chunks": count, "filename": filename})
             else:
                 return jsonify({"error": "Could not extract text"}), 400
@@ -131,7 +139,18 @@ def run_council():
     # 1. Retrieve Context
     context_chunks = []
     if state.doc_loaded:
+        # Try vector search first
         context_chunks = state.vector_store.query(prompt, n_results=4)
+        
+        # Fallback: If no chunks found (e.g. no embedding model) but we have text, use full text
+        if not context_chunks and state.full_text:
+            print("Using full text fallback for context.")
+            # Limit text length to avoid context window overflow (e.g. 50k chars is usually safe for modern models)
+            # This is a simple safety cap.
+            safe_text = state.full_text[:50000]
+            if len(state.full_text) > 50000:
+                safe_text += "\n...(truncated)..."
+            context_chunks = [safe_text]
         
     # 2. Run Council & 3. Synthesize via Streaming
     import queue

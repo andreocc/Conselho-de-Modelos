@@ -101,16 +101,25 @@ class VectorStore:
             if any(self.embedding_model in m for m in model_names):
                 return self.embedding_model
             
-            # If not, look for common embedding models
-            for known in ["nomic-embed-text", "mxbai-embed-large", "snowflake-arctic-embed"]:
-                if any(known in m for m in model_names):
-                    return known
+            # If not, look for known embedding models
+            known_embedders = [
+                "nomic-embed-text", 
+                "mxbai-embed-large", 
+                "snowflake-arctic-embed", 
+                "bge-m3", 
+                "starling-lm"
+            ]
             
-            # Fallback to the first available model (not ideal but better than crash)
-            if model_names:
-                return model_names[0]
+            for known in known_embedders:
+                for m in model_names:
+                    if known in m:
+                        return m
             
+            # Do NOT fallback to random chat models as they often don't support embeddings endpoint
+            # or are too heavy/wrong format.
+            print(f"No dedicated embedding model found. Available: {model_names}")
             return None
+
         except Exception as e:
             print(f"Error finding embedding model: {e}")
             return None
