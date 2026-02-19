@@ -73,12 +73,16 @@ class ModelCouncil:
     async def run_council(selected_models, prompt, context_chunks=None, persona_mode="Padrão (Neutro)"):
         """
         Runs the prompt against all selected models in parallel with Persona injection.
+        Yields progress events.
         """
         context_text = "\n\n".join(context_chunks) if context_chunks else None
         
         persona_config = config.PERSONAS.get(persona_mode, config.PERSONAS["Padrão (Neutro)"])
         
-        tasks = []
+        # Create tasks
+        pending_tasks = []
+        model_map = {} # task -> model_name
+
         for i, model in enumerate(selected_models):
             # Determine system prompt for this specific model
             sys_prompt = None
@@ -90,14 +94,26 @@ class ModelCouncil:
             elif "system_prompt" in persona_config:
                 sys_prompt = persona_config["system_prompt"]
                 
-            tasks.append(ModelCouncil.query_model(model, prompt, context_text, system_prompt=sys_prompt))
-        
-        results = await asyncio.gather(*tasks)
-        
-        # Inject the role into the result so we can display it?
-        # For simplicty, we just return the result. Ideally we'd modify the response dict to include the role.
-        # Let's post-process slightly if needed, but for now the content reflects the role.
-        return results
+            task = asyncio.create_task(ModelCouncil.query_model(model, prompt, context_text, system_prompt=sys_prompt))
+            pending_tasks.append(task)
+            model_map[task] = model
+            
+            # Yield start event
+            yield {"type": "model_start", "model": model}
+
+        # Wait for tasks as they complete
+        while pending_tasks:
+            done, pending_tasks = await asyncio.wait(pending_tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                model_name = model_map[task]
+                try:
+                    result = await task
+                    yield {"type": "model_done", "model": model_name, "result": result}
+                except Exception as e:
+                    yield {"type": "model_error", "model": model_name, "error": str(e)}
+            
+            # Update pending tasks list (although asyncio.wait returns the new pending set)
+            pending_tasks = list(pending_tasks)
 
     @staticmethod
     async def synthesize_answers(judge_model, prompt, model_results, council_mode="Padrão"):

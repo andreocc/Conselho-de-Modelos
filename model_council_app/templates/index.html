@@ -628,6 +628,75 @@
 
         function stopFeedback() { clearInterval(feedbackInterval); }
 
+        // Helper to create the status UI
+        function initStatusUI(models) {
+            const container = document.getElementById('results');
+            container.innerHTML = '';
+
+            // Status Section
+            const statusDiv = document.createElement('div');
+            statusDiv.id = 'execution-status';
+            statusDiv.className = 'card';
+            statusDiv.style.marginBottom = '2rem';
+
+            let html = '<div class="card-header"><div class="model-name">🚦 Status da Execução</div></div>';
+            html += '<div style="display: flex; flex-direction: column; gap: 0.8rem;">';
+
+            models.forEach(m => {
+                const id = 'status-' + m.replace(/[^a-zA-Z0-9]/g, '-');
+                html += `
+                    <div id="${id}" style="display: flex; align-items: center; gap: 10px; font-size: 0.95rem;">
+                        <span class="status-icon" style="color: var(--text-muted)">⚪</span>
+                        <span style="font-weight: 500">${m}</span>
+                        <span class="status-text" style="color: var(--text-muted); font-size: 0.85rem; margin-left: auto;">Aguardando...</span>
+                    </div>`;
+            });
+
+            // Synthesis Status
+            html += `
+                <div id="status-synthesis" style="display: flex; align-items: center; gap: 10px; font-size: 0.95rem; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                    <span class="status-icon" style="color: var(--text-muted)">⚪</span>
+                    <span style="font-weight: 500">Juiz (Síntese)</span>
+                    <span class="status-text" style="color: var(--text-muted); font-size: 0.85rem; margin-left: auto;">Aguardando...</span>
+                </div>`;
+
+            html += '</div>';
+            statusDiv.innerHTML = html;
+            container.appendChild(statusDiv);
+
+            // Results Container (for cards)
+            const resultsDiv = document.createElement('div');
+            resultsDiv.id = 'results-content';
+            resultsDiv.className = 'results-container';
+            container.appendChild(resultsDiv);
+        }
+
+        function updateStatus(model, state, message) {
+            let id = model === 'synthesis' ? 'status-synthesis' : 'status-' + model.replace(/[^a-zA-Z0-9]/g, '-');
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            const icon = el.querySelector('.status-icon');
+            const text = el.querySelector('.status-text');
+
+            if (state === 'running') {
+                icon.innerText = '🔵'; // Or a spinner
+                icon.classList.add('spinning'); // Add CSS for spin if desired
+                text.innerText = message || 'Processando...';
+                text.style.color = 'var(--primary)';
+            } else if (state === 'done') {
+                icon.innerText = '✅';
+                icon.classList.remove('spinning');
+                text.innerText = 'Concluído';
+                text.style.color = 'var(--success)';
+            } else if (state === 'error') {
+                icon.innerText = '❌';
+                icon.classList.remove('spinning');
+                text.innerText = message || 'Erro';
+                text.style.color = 'var(--error)';
+            }
+        }
+
         async function runCouncil() {
             const prompt = document.getElementById('prompt-input').value;
             if (!prompt) return;
@@ -642,107 +711,145 @@
             // UI State
             const btn = document.getElementById('run-btn');
             btn.disabled = true;
-            document.getElementById('loading').style.display = 'flex';
-            document.getElementById('results').innerHTML = '';
+            document.getElementById('loading').style.display = 'none'; // We use custom status now
 
-            startFeedback();
+            initStatusUI(models);
 
             try {
-                const res = await fetch('/api/run_council', {
+                const response = await fetch('/api/run_council', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ models, judge, prompt, persona })
                 });
-                const data = await res.json();
 
-                if (data.error) throw new Error(data.error);
-                renderResults(data);
+                if (!response.ok) throw new Error("Erro na requisição: " + response.statusText);
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop(); // Keep the last incomplete chunk
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const jsonStr = line.replace('data: ', '');
+                            try {
+                                const event = JSON.parse(jsonStr);
+                                handleEvent(event);
+                            } catch (e) {
+                                console.error('Error parsing SSE:', e);
+                            }
+                        }
+                    }
+                }
 
                 // Refresh history
                 loadHistory();
 
             } catch (e) {
                 alert("Erro: " + e.message);
+                const container = document.getElementById('results');
+                container.insertAdjacentHTML('beforeend', `<div style="color: var(--error); margin-top: 1rem;">Erro fatal: ${e.message}</div>`);
             } finally {
-                stopFeedback();
                 btn.disabled = false;
-                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function handleEvent(event) {
+            const resultsContainer = document.getElementById('results-content');
+
+            switch (event.type) {
+                case 'model_start':
+                    updateStatus(event.model, 'running');
+                    break;
+
+                case 'model_done':
+                    updateStatus(event.model, 'done');
+                    // Render Individual Card
+                    const cardIndex = document.querySelectorAll('.card').length;
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="model-name">🤖 ${event.model}</div>
+                            <button class="copy-btn" id="copy-btn-${cardIndex}" onclick="copyToClipboard(decodeURIComponent('${encodeURIComponent(event.result.response)}'), 'copy-btn-${cardIndex}')">
+                                Copiar
+                            </button>
+                        </div>
+                        <div class="markdown-content">${marked.parse(event.result.response)}</div>
+                    `;
+                    resultsContainer.appendChild(card);
+                    break;
+
+                case 'model_error':
+                    updateStatus(event.model, 'error', event.error);
+                    break;
+
+                case 'synthesis_start':
+                    updateStatus('synthesis', 'running', 'Redigindo veredito...');
+                    break;
+
+                case 'synthesis_done':
+                    updateStatus('synthesis', 'done');
+                    // Render Synthesis (Prepend to results or specific spot? Usually synthesis is top or bottom. Previously top.)
+                    // Let's put it at the TOP of the results-content
+                    const sCard = document.createElement('div');
+                    sCard.className = 'card synthesis';
+                    sCard.innerHTML = `
+                        <div class="card-header">
+                            <div class="model-name">⚖️ Veredito do Juiz</div>
+                             <button class="copy-btn" id="copy-synthesis-btn" onclick="copyToClipboard(decodeURIComponent('${encodeURIComponent(event.result)}'), 'copy-synthesis-btn')">
+                                Copiar
+                            </button>
+                        </div>
+                        <div class="markdown-content">${marked.parse(event.result)}</div>
+                    `;
+                    resultsContainer.insertBefore(sCard, resultsContainer.firstChild); // Insert at top
+                    break;
+
+                case 'context':
+                    if (event.data && event.data.length > 0) {
+                        const details = document.createElement('details');
+                        details.style.color = "var(--text-muted)";
+                        details.style.marginTop = "2rem";
+                        details.innerHTML = `
+                            <summary style="cursor: pointer">Ver Evidências (Contexto RAG)</summary>
+                            <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                                ${event.data.map((c, i) => `<div style="margin-bottom:1rem; font-size: 0.9em;"><strong>Trecho ${i + 1}:</strong><br>${c}</div>`).join('')}
+                            </div>
+                        `;
+                        resultsContainer.appendChild(details);
+                    }
+                    break;
+
+                case 'error':
+                    alert("Erro no servidor: " + event.error);
+                    break;
             }
         }
 
         function copyToClipboard(text, btnId) {
             navigator.clipboard.writeText(text).then(() => {
                 const btn = document.getElementById(btnId);
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<span>Copiado!</span>';
+                if (!btn) return;
+                const originalText = 'Copiar'; // simplified
+                btn.innerText = 'Copiado!';
                 setTimeout(() => {
-                    btn.innerHTML = originalText;
+                    btn.innerText = originalText;
                 }, 2000);
             }).catch(err => {
                 console.error('Falha ao copiar: ', err);
             });
         }
 
-        function renderResults(data) {
-            const container = document.getElementById('results');
-
-            // Synthesis First
-            if (data.synthesis) {
-                const card = document.createElement('div');
-                card.className = 'card synthesis';
-                card.innerHTML = `
-                <div class="card-header">
-                    <div class="model-name">⚖️ Veredito do Juiz</div>
-                    <button class="copy-btn" id="copy-synthesis-btn" onclick="copyToClipboard(decodeURIComponent('${encodeURIComponent(data.synthesis)}'), 'copy-synthesis-btn')">
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                        Copiar
-                    </button>
-                </div>
-                <div class="markdown-content">${marked.parse(data.synthesis)}</div>
-            `;
-                container.appendChild(card);
-            }
-
-            // Divider text
-            if (data.results.length > 0) {
-                const divider = document.createElement('div');
-                divider.className = 'section-title';
-                divider.style.marginTop = '2rem';
-                divider.innerText = "Votos Individuais";
-                container.appendChild(divider);
-            }
-
-            // Individual cards
-            data.results.forEach((res, index) => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                <div class="card-header">
-                    <div class="model-name">🤖 ${res.model}</div>
-                    <button class="copy-btn" id="copy-individual-btn-${index}" onclick="copyToClipboard(decodeURIComponent('${encodeURIComponent(res.response)}'), 'copy-individual-btn-${index}')">
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                        Copiar
-                    </button>
-                </div>
-                <div class="markdown-content">${marked.parse(res.response)}</div>
-            `;
-                container.appendChild(card);
-            });
-
-            // Context
-            if (data.context && data.context.length > 0) {
-                const details = document.createElement('details');
-                details.style.color = "var(--text-muted)";
-                details.style.marginTop = "2rem";
-                details.innerHTML = `
-                <summary style="cursor: pointer">Ver Evidências (Contexto RAG)</summary>
-                <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                    ${data.context.map((c, i) => `<div style="margin-bottom:1rem; font-size: 0.9em;"><strong>Trecho ${i + 1}:</strong><br>${c}</div>`).join('')}
-                </div>
-            `;
-                container.appendChild(details);
-            }
-        }
+        // Removed renderResults as it is now handled incrementally via streaming
+        /* function renderResults(data) { ... } */
     </script>
 
 </body>

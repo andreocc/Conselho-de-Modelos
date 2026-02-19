@@ -133,28 +133,61 @@ def run_council():
     if state.doc_loaded:
         context_chunks = state.vector_store.query(prompt, n_results=4)
         
-    # 2. Run Council & 3. Synthesize
-    
-    async def process_request():
-        r = await ModelCouncil.run_council(selected_models, prompt, context_chunks, persona_mode)
-        s = await ModelCouncil.synthesize_answers(judge_model, prompt, r, persona_mode)
-        return r, s
+    # 2. Run Council & 3. Synthesize via Streaming
+    import queue
+    import threading
+    import json
+    from flask import Response
 
-    try:
-        results, synthesis = asyncio.run(process_request())
+    def generate():
+        q = queue.Queue()
         
-        # Save History
-        HistoryManager.save_entry(prompt, persona_mode, synthesis, [r['model'] for r in results])
-        
-        return jsonify({
-            "results": results,
-            "synthesis": synthesis,
-            "context": context_chunks
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        def worker():
+            async def async_process():
+                results = []
+                try:
+                    # Stream Model Execution
+                    async for event in ModelCouncil.run_council(selected_models, prompt, context_chunks, persona_mode):
+                        q.put(json.dumps(event))
+                        if event['type'] == 'model_done':
+                            results.append(event['result'])
+                    
+                    # Stream Synthesis
+                    q.put(json.dumps({"type": "synthesis_start"}))
+                    
+                    # Filter out failed results for synthesis
+                    valid_results = [r for r in results if r['status'] == 'Success']
+                    
+                    synthesis = await ModelCouncil.synthesize_answers(judge_model, prompt, valid_results, persona_mode)
+                    q.put(json.dumps({"type": "synthesis_done", "result": synthesis}))
+                    
+                    # Save History
+                    # We save the history here, but we don't return it in the stream necessarily, 
+                    # or we can send a "complete" event.
+                    # The UI reloads history separately anyway.
+                    HistoryManager.save_entry(prompt, persona_mode, synthesis, [r['model'] for r in valid_results])
+                    
+                    # Send context separately if needed by UI
+                    q.put(json.dumps({"type": "context", "data": context_chunks}))
+
+                except Exception as e:
+                    q.put(json.dumps({"type": "error", "error": str(e)}))
+                finally:
+                    q.put(None) # Sentinel
+
+            asyncio.run(async_process())
+
+        # Start the background worker
+        threading.Thread(target=worker).start()
+
+        # Yield from queue
+        while True:
+            item = q.get()
+            if item is None:
+                break
+            yield f"data: {item}\n\n"
+
+    return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
     app.run(debug=True, port=8501, host='127.0.0.1')
