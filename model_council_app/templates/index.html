@@ -355,6 +355,57 @@
             font-style: italic;
             color: var(--text-muted);
         }
+
+        /* New Styles for Refined UI */
+        .card.synthesis {
+            border: 2px solid #fbbf24;
+            /* Amber 400 */
+            background: linear-gradient(to bottom right, rgba(251, 191, 36, 0.1), rgba(30, 41, 59, 1));
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card.synthesis::before {
+            content: "🏆 Decisão Final";
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #fbbf24;
+            color: #000;
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 0.2rem 0.6rem;
+            border-bottom-left-radius: 8px;
+            text-transform: uppercase;
+        }
+
+        .council-section {
+            border-left: 4px solid var(--primary);
+            padding-left: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .council-header {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .refine-btn {
+            background: rgba(251, 191, 36, 0.1);
+            color: #fbbf24;
+            /* Amber 400 */
+            border: 1px solid #fbbf24;
+        }
+
+        .refine-btn:hover {
+            background: #fbbf24;
+            color: #000;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -764,6 +815,21 @@
         function handleEvent(event) {
             const resultsContainer = document.getElementById('results-content');
 
+            // Ensure Council Container exists if not already
+            let councilContainer = document.getElementById('council-container');
+            if (!councilContainer && (event.type === 'model_done' || event.type === 'model_start')) {
+                const section = document.createElement('div');
+                section.className = 'council-section';
+                section.id = 'council-container';
+                section.innerHTML = `
+                    <div class="council-header">
+                        <span>🧠</span> Opiniões dos Conselheiros
+                    </div>
+                 `;
+                resultsContainer.appendChild(section);
+                councilContainer = section;
+            }
+
             switch (event.type) {
                 case 'model_start':
                     updateStatus(event.model, 'running');
@@ -771,7 +837,7 @@
 
                 case 'model_done':
                     updateStatus(event.model, 'done');
-                    // Render Individual Card
+                    // Render Individual Card inside Council Container
                     const cardIndex = document.querySelectorAll('.card').length;
                     const card = document.createElement('div');
                     card.className = 'card';
@@ -784,7 +850,12 @@
                         </div>
                         <div class="markdown-content">${marked.parse(event.result.response)}</div>
                     `;
-                    resultsContainer.appendChild(card);
+                    // Append to the council container
+                    if (councilContainer) {
+                        councilContainer.appendChild(card);
+                    } else {
+                        resultsContainer.appendChild(card); // Fallback
+                    }
                     break;
 
                 case 'model_error':
@@ -797,20 +868,25 @@
 
                 case 'synthesis_done':
                     updateStatus('synthesis', 'done');
-                    // Render Synthesis (Prepend to results or specific spot? Usually synthesis is top or bottom. Previously top.)
-                    // Let's put it at the TOP of the results-content
+                    // Render Synthesis at the TOP
                     const sCard = document.createElement('div');
                     sCard.className = 'card synthesis';
+                    sCard.style.marginBottom = '2rem'; // Spacing from council
                     sCard.innerHTML = `
                         <div class="card-header">
-                            <div class="model-name">⚖️ Veredito do Juiz</div>
-                             <button class="copy-btn" id="copy-synthesis-btn" onclick="copyToClipboard(decodeURIComponent('${encodeURIComponent(event.result)}'), 'copy-synthesis-btn')">
-                                Copiar
-                            </button>
+                            <div class="model-name" style="color: #fbbf24">⚖️ Veredito do Juiz</div>
+                            <div style="display:flex; gap:10px;">
+                                <button class="copy-btn refine-btn" onclick="refineReasoning(decodeURIComponent('${encodeURIComponent(event.result)}'))">
+                                    🔄 Refinar
+                                </button>
+                                <button class="copy-btn" id="copy-synthesis-btn" onclick="copyToClipboard(decodeURIComponent('${encodeURIComponent(event.result)}'), 'copy-synthesis-btn')">
+                                    Copiar
+                                </button>
+                            </div>
                         </div>
                         <div class="markdown-content">${marked.parse(event.result)}</div>
                     `;
-                    resultsContainer.insertBefore(sCard, resultsContainer.firstChild); // Insert at top
+                    resultsContainer.insertBefore(sCard, resultsContainer.firstChild);
                     break;
 
                 case 'context':
@@ -832,6 +908,14 @@
                     alert("Erro no servidor: " + event.error);
                     break;
             }
+        }
+
+        function refineReasoning(text) {
+            const promptInput = document.getElementById('prompt-input');
+            const newPrompt = `Com base na conclusão anterior:\n\n${text}\n\nGostaria de refinar o seguinte ponto: `;
+            promptInput.value = newPrompt;
+            promptInput.focus();
+            promptInput.scrollIntoView({ behavior: 'smooth' });
         }
 
         function copyToClipboard(text, btnId) {
