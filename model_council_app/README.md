@@ -1,73 +1,93 @@
-# Local Model Council 🧠
+# 🧠 Conselho de Modelos Local (Local Model Council)
 
-Uma aplicação web Python que implementa um "Conselho de Modelos" usando Ollama. A aplicação permite consultar múltiplos LLMs locais em paralelo e obter uma síntese consolidada, com suporte a RAG (Retrieval-Augmented Generation) para documentos.
+> **Orquestre múltiplos LLMs locais para debater, analisar e sintetizar soluções complexas.**
 
-Inspiração: [Perplexity Model Council](https://www.perplexity.ai/hub/blog/introducing-model-council)
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![Flask](https://img.shields.io/badge/Flask-Waitress-orange)
+![Ollama](https://img.shields.io/badge/Ollama-Local%20AI-white)
+![RAG](https://img.shields.io/badge/RAG-Local-green)
 
-## Funcionalidades
-- **Múltiplos Modelos**: Selecione e consulte vários modelos Ollama simultaneamente.
-- **RAG Local**: Upload de PDF, DOCX ou TXT para usar como contexto.
-- **Síntese Inteligente**: Um modelo "Juiz" consolida as respostas, destacando consensos e divergências.
-- **Execução Paralela**: Respostas rápidas usando `asyncio`.
-- **Interface Amigável**: Construída com Streamlit.
+O **Conselho de Modelos Local** é uma aplicação web que permite consultar vários Modelos de Linguagem (LLMs) rodando localmente via **Ollama** de forma paralela. Diferente de um chat comum, ele introduz um "Juiz" (Sintetizador) que analisa todas as respostas e entrega um veredito consolidado, eliminando alucinações e enriquecendo a resposta final.
 
-## Pré-requisitos
-1. **Python 3.9+** instalado.
-2. **Ollama** instalado e rodando.
-   - Baixe em: [ollama.com](https://ollama.com)
-   - Certifique-se de ter baixado alguns modelos (ex: `ollama pull llama3`, `ollama pull mistral`, `ollama pull gemma`).
+A aplicação foi desenhada para privacidade total (100% offline), performance em hardware consumidor (Apple Silicon/Windows ARM64/x64) e usabilidade premium.
 
-## Instalação
+---
 
-1. Clone o repositório ou navegue até a pasta:
-   ```bash
-   cd model_council_app
-   ```
+## ✨ Principais Funcionalidades
 
-2. Crie um ambiente virtual (recomendado):
-   ```bash
-   python -m venv venv
-   # Windows
-   .\venv\Scripts\activate
-   # Linux/Mac
-   source venv/bin/activate
-   ```
+### 🤖 Orquestração de Múltiplos Modelos
+- Selecione livremente quais modelos instalados no seu Ollama (Llama 3, Mistral, Gemma, Phi-3, etc.) farão parte do conselho.
+- Execução paralela para minimizar o tempo de espera.
 
-3. Instale as dependências:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### ⚖️ Sistema de Juiz e Síntese
+- Um modelo dedicado atua como "Presidente do Conselho".
+- Ele lê todas as opiniões individuais e gera um relatório final contendo: **Consensos**, **Divergências** e uma **Conclusão Unificada**.
 
-## Como Usar
+### 🎭 Personas do Conselho (Novo!)
+Altere a dinâmica do debate com modos predefinidos:
+- **Debate (Opostos)**: Força os modelos a assumirem papéis de *Cético*, *Visionário* e *Pragmático*.
+- **Consultoria**: Foco em análise técnica e estruturada.
+- **Criativo**: Brainstorming sem filtros.
 
-1. Inicie a aplicação:
-   ```bash
-   streamlit run app.py
-   ```
+### 📚 RAG (Retrieval-Augmented Generation) Local
+- **Docs**: Upload de PDFs, DOCX e TXT para dar contexto ao conselho.
+- **Web**: Cole uma URL e o sistema lerá o conteúdo da página para embasar a discussão.
+- Tudo processado na memória localmente (Embeddings via Ollama), sem envio de dados para nuvem.
 
-2. O navegador abrirá automaticamente (geralmente em `http://localhost:8501`).
+### 🎨 Interface Premium
+- UI moderna e responsiva (Dark Mode).
+- Feedback em tempo real ("O Juiz está deliberando...").
+- Histórico de sessões salvo localmente.
 
-3. **Na barra lateral**:
-   - Verifique se os modelos foram carregados corretamente.
-   - Selecione os modelos que farão parte do conselho.
-   - Selecione o modelo "Juiz".
-   - (Opcional) Faça upload de um documento para contexto.
+---
 
-4. **Na área principal**:
-   - Digite sua pergunta/prompt.
-   - Clique em "Convening Council".
+## 🛠️ Stack Tecnológica
 
-5. Aguarde as respostas individuais e a síntese final.
+- **Backend**: Python + Flask (transição de Streamlit para maior compatibilidade).
+- **IA/LLM**: [Ollama](https://ollama.com/) (Biblioteca Python oficial).
+- **Vetorização**: NumPy + Ollama Embeddings (sem dependências pesadas como ChromaDB/Torch, ideal para ARM64).
+- **Frontend**: HTML5, Vanilla CSS (Inter Font), JavaScript puro.
 
-## Estrutura do Projeto
+---
 
-- `app.py`: Interface do usuário (Streamlit).
-- `council.py`: Lógica de orquestração e chamada aos modelos (Ollama).
-- `rag.py`: Processamento de documentos e banco vetorial (ChromaDB + SentenceTransformers).
-- `config.py`: Configurações globais.
+## 🚀 Como Executar
 
-## Troubleshooting
+### Pré-requisitos
+1.  Tenha o **[Ollama](https://ollama.com/)** instalado e rodando.
+2.  Baixe alguns modelos (ex: `ollama pull llama3`, `ollama pull mistral`).
+3.  Python 3 instalado.
 
-- **Erro de conexão Ollama**: Certifique-se de que o aplicativo Ollama está rodando em background (`ollama serve` ou via aplicativo desktop).
-- **Modelos não aparecem**: Rode `ollama list` no terminal para garantir que você tem modelos baixados.
-- **Erro no ChromaDB**: Se houver problemas com sqlite3, tente atualizar o pip ou instalar as build tools do C++.
+### Instalação Rápida (Windows)
+
+Basta executar o script automático:
+
+```powershell
+.\run_council.bat
+```
+
+O script irá:
+1.  Criar um ambiente virtual (`venv`).
+2.  Instalar as dependências (`flask`, `requests`, `beautifulsoup4`, etc.).
+3.  Iniciar o servidor e abrir seu navegador em `http://127.0.0.1:8501`.
+
+---
+
+## 📖 Como Usar
+
+1.  **Selecione os Conselheiros**: Marque as caixas dos modelos que deseja consultar na barra lateral.
+2.  **Escolha o Juiz**: Defina qual modelo fará a síntese final (recomendado um modelo mais capaz, como Llama 3 ou Mistral).
+3.  **Defina o Contexto (Opcional)**:
+    *   Faça upload de um arquivo PDF/DOCX.
+    *   Ou cole uma URL para leitura.
+4.  **Escolha a Persona**: Defina se quer um debate acalorado ou uma consultoria técnica.
+5.  **Pergunte**: Digite seu dilema e clique em "Convocar Conselho".
+
+---
+
+## 📄 Licença
+
+Este projeto é open-source sob a licença [MIT](LICENSE). Sinta-se livre para modificar e distribuir.
+
+---
+
+Desenvolvido com foco em **Simplicidade**, **Privacidade** e **Poder Local**.
