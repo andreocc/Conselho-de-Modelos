@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            /* Indigo 500 */
+            --primary-hover: #4f46e5;
+            --bg-color: #0f172a;
+            /* Slate 900 */
+            --card-bg: #1e293b;
+            /* Slate 800 */
+            --text-main: #f1f5f9;
+            /* Slate 100 */
+            --text-muted: #94a3b8;
+            /* Slate 400 */
+            --border-color: #334155;
+            /* Slate 700 */
+            --success: #10b981;
+            --error: #ef4444;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Layout */
+        .app-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background-color: #111827;
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        /* Config Controls */
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .model-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .checkbox-label:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .checkbox-label input {
+            margin-right: 0.75rem;
+            accent-color: var(--primary);
+            width: 16px;
+            height: 16px;
+        }
+
+        select,
+        input[type="file"] {
+            width: 100%;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+        }
+
+        select:focus {
+            border-color: var(--primary);
+        }
+
+        /* File Upload Styling */
+        .file-upload-wrapper {
+            position: relative;
+        }
+
+        input[type="file"]::file-selector-button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 2rem 3rem;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .prompt-area {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 2rem;
+            transition: border-color 0.2s;
+        }
+
+        .prompt-area:focus-within {
+            border-color: var(--primary);
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+            outline: none;
+        }
+
+        .action-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            background: var(--border-color);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* Results Area */
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Individual votes smaller font */
+        .card:not(.synthesis) .markdown-content {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .card.synthesis {
+            border: 2px solid var(--primary);
+            background: linear-gradient(to bottom right, rgba(99, 102, 241, 0.05), rgba(30, 41, 59, 1));
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        .model-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .copy-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .copy-btn:hover {
+            border-color: var(--primary);
+            color: var(--text-main);
+        }
+
+        /* Loading State */
+        .loading-overlay {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Typography within Markdown */
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+            color: white;
+            margin-top: 1.5em;
+        }
+
+        .markdown-content p {
+            margin-bottom: 1rem;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+            padding-left: 1.5rem;
+        }
+
+        .markdown-content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+        }
+
+        .markdown-content pre {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .markdown-content strong {
+            color: white;
+            font-weight: 600;
+        }
+
+        .markdown-content blockquote {
+            border-left: 4px solid var(--primary);
+            margin: 0;
+            padding-left: 1rem;
+            font-style: italic;
+            color: var(--text-muted);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <span>{{ app_icon }}</span> {{ app_title }}
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">Modo do Conselho (Persona)</div>
+                <select id="persona-select">
+                    <!-- Populated via JS -->
+                </select>
+                <div id="persona-desc" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;"></div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">Conselheiros (Modelos)</div>
+                <div class="model-list" id="model-list">
+                    <div style="color: var(--text-muted); font-size: 0.9rem;">Carregando modelos...</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">Juiz (Sintetizador)</div>
+                <select id="judge-select"></select>
+            </div>
+
+            <div style="margin-top: 1rem;">
+                <div class="section-title">Base de Conhecimento (RAG)</div>
+
+                <div class="file-upload-wrapper">
+                    <input type="file" id="file-upload" accept=".pdf,.docx,.txt">
+                </div>
+
+                <div style="margin-top: 0.5rem; display: flex; gap: 5px;">
+                    <input type="text" id="url-input" placeholder="Ou cole uma URL..."
+                        style="padding: 0.5rem; font-size: 0.9rem;">
+                    <button onclick="uploadUrl()" style="width: auto; padding: 0.5rem 1rem;">
+                        🌐
+                    </button>
+                </div>
+
+                <div id="file-status" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+                    Nenhum documento ativo
+                </div>
+                <button id="clear-doc-btn"
+                    style="background: transparent; border: 1px solid var(--error); color: var(--error); width: 100%; padding: 0.5rem; border-radius: 6px; margin-top: 0.5rem; cursor: pointer; display: none;"
+                    onclick="clearDoc()">
+                    Remover Documento
+                </button>
+            </div>
+
+            <div style="margin-top: auto;">
+                <div class="section-title">Histórico Recente</div>
+                <div id="history-list"
+                    style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 200px; overflow-y: auto;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">Vazio</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <div class="prompt-area">
+                <textarea id="prompt-input" class="prompt-textarea"
+                    placeholder="Qual é o dilema que o conselho deve resolver hoje?"></textarea>
+                <div class="action-bar">
+                    <button id="run-btn" class="btn-primary" onclick="runCouncil()">
+                        <span>Convocar Conselho</span>
+                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="loading" class="loading-overlay">
+                <div class="spinner"></div>
+                <h3 id="loading-text" style="color: white; margin: 0;">Iniciando sessão...</h3>
+                <p id="loading-detail" style="color: var(--text-muted); margin-top: 0.5rem;"></p>
+            </div>
+
+            <div id="results" class="results-container">
+                <!-- Results will be injected here -->
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        let appConfig = {};
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Fetch config (models + personas)
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                appConfig = data;
+
+                // 1. Setup Personas
+                const personaSelect = document.getElementById('persona-select');
+                const personaDesc = document.getElementById('persona-desc');
+
+                Object.keys(data.personas).forEach(key => {
+                    const opt = document.createElement('option');
+                    opt.value = key;
+                    opt.text = key;
+                    personaSelect.appendChild(opt);
+                });
+
+                personaSelect.addEventListener('change', () => {
+                    const selected = data.personas[personaSelect.value];
+                    personaDesc.innerText = selected.description;
+                });
+                // Init description
+                if (data.personas[personaSelect.value]) {
+                    personaDesc.innerText = data.personas[personaSelect.value].description;
+                }
+
+                // 2. Setup Models
+                const list = document.getElementById('model-list');
+                const judgeSelect = document.getElementById('judge-select');
+
+                list.innerHTML = '';
+                judgeSelect.innerHTML = '';
+
+                if (data.models.length === 0) {
+                    list.innerHTML = '<div style="color: var(--error)">Nenhum modelo detectado.</div>';
+                } else {
+                    data.models.forEach((model, index) => {
+                        // Checkbox
+                        const label = document.createElement('label');
+                        label.className = 'checkbox-label';
+                        const checked = index < 3 ? 'checked' : '';
+                        label.innerHTML = `<input type="checkbox" value="${model}" ${checked}> ${model}`;
+                        list.appendChild(label);
+
+                        // Judge
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.text = model;
+                        judgeSelect.appendChild(option);
+                    });
+                }
+
+                // 3. Load History
+                loadHistory();
+
+            } catch (e) {
+                console.error(e);
+                alert("Erro ao conectar com o servidor.");
+            }
+        });
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                const data = await res.json();
+                const list = document.getElementById('history-list');
+                list.innerHTML = '';
+
+                if (data.length === 0) {
+                    list.innerHTML = '<div style="font-size: 0.8rem; color: var(--text-muted);">Vazio</div>';
+                    return;
+                }
+
+                data.forEach(entry => {
+                    const item = document.createElement('div');
+                    item.style.cursor = 'pointer';
+                    item.style.padding = '5px';
+                    item.style.background = 'rgba(255,255,255,0.05)';
+                    item.style.borderRadius = '4px';
+                    item.style.fontSize = '0.8rem';
+                    item.style.whiteSpace = 'nowrap';
+                    item.style.overflow = 'hidden';
+                    item.style.textOverflow = 'ellipsis';
+                    item.innerText = entry.prompt;
+                    item.title = entry.prompt + `\n(${entry.timestamp})`;
+
+                    item.onclick = () => {
+                        // Quick view logic (populate prompt and synthesis?)
+                        // For now, let's just populate the prompt
+                        document.getElementById('prompt-input').value = entry.prompt;
+                    };
+                    list.appendChild(item);
+                });
+            } catch (e) { }
+        }
+
+        // URL Upload
+        async function uploadUrl() {
+            const url = document.getElementById('url-input').value;
+            if (!url) return;
+
+            const status = document.getElementById('file-status');
+            status.innerText = "Lendo URL...";
+
+            try {
+                const res = await fetch('/api/upload_url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    status.innerHTML = `<span style="color: var(--success)">🌐 URL Carregada</span>`;
+                    document.getElementById('clear-doc-btn').style.display = 'block';
+                    document.getElementById('url-input').value = "";
+                } else {
+                    status.innerText = "Erro ao ler URL.";
+                }
+            } catch (e) { status.innerText = "Erro na conexão."; }
+        }
+
+        // File Upload
+        document.getElementById('file-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            const status = document.getElementById('file-status');
+            status.innerText = "Processando...";
+
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    status.innerHTML = `<span style="color: var(--success)">✓ ${data.filename}</span>`;
+                    document.getElementById('clear-doc-btn').style.display = 'block';
+                } else {
+                    status.innerText = "Erro no envio.";
+                }
+            } catch (e) { status.innerText = "Falha na conexão."; }
+        });
+
+        async function clearDoc() {
+            await fetch('/api/clear_doc', { method: 'POST' });
+            document.getElementById('file-status').innerText = "Nenhum documento ativo";
+            document.getElementById('file-upload').value = "";
+            document.getElementById('clear-doc-btn').style.display = 'none';
+        }
+
+        let feedbackInterval;
+        const feedbackMessages = [
+            "Convocando os conselheiros...",
+            "Lendo os arquivos do caso...",
+            "Debatendo perspectivas...",
+            "Analisando nuances...",
+            "O Juiz está redigindo o veredito...",
+            "Finalizando relatório..."
+        ];
+
+        function startFeedback() {
+            let i = 0;
+            const textEl = document.getElementById('loading-detail');
+            textEl.innerText = feedbackMessages[0];
+            feedbackInterval = setInterval(() => {
+                i = (i + 1) % feedbackMessages.length;
+                textEl.innerText = feedbackMessages[i];
+            }, 3500);
+        }
+
+        function stopFeedback() { clearInterval(feedbackInterval); }
+
+        async function runCouncil() {
+            const prompt = document.getElementById('prompt-input').value;
+            if (!prompt) return;
+
+            const checkboxes = document.querySelectorAll('#model-list input[type="checkbox"]:checked');
+            const models = Array.from(checkboxes).map(cb => cb.value);
+            if (models.length === 0) return alert("Selecione os conselheiros.");
+
+            const judge = document.getElementById('judge-select').value;
+            const persona = document.getElementById('persona-select').value;
+
+            // UI State
+            const btn = document.getElementById('run-btn');
+            btn.disabled = true;
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('results').innerHTML = '';
+
+            startFeedback();
+
+            try {
+                const res = await fetch('/api/run_council', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ models, judge, prompt, persona })
+                });
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+                renderResults(data);
+
+                // Refresh history
+                loadHistory();
+
+            } catch (e) {
+                alert("Erro: " + e.message);
+            } finally {
+                stopFeedback();
+                btn.disabled = false;
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function copyToClipboard(text, btnId) {
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById(btnId);
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<span>Copiado!</span>';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Falha ao copiar: ', err);
+            });
+        }
+
+        function renderResults(data) {
+            const container = document.getElementById('results');
+
+            // Synthesis First
+            if (data.synthesis) {
+                const card = document.createElement('div');
+                card.className = 'card synthesis';
+                card.innerHTML = `
+                <div class="card-header">
+                    <div class="model-name">⚖️ Veredito do Juiz</div>
+                    <button class="copy-btn" id="copy-synthesis-btn" onclick="copyToClipboard(decodeURIComponent('${encodeURIComponent(data.synthesis)}'), 'copy-synthesis-btn')">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        Copiar
+                    </button>
+                </div>
+                <div class="markdown-content">${marked.parse(data.synthesis)}</div>
+            `;
+                container.appendChild(card);
+            }
+
+            // Divider text
+            if (data.results.length > 0) {
+                const divider = document.createElement('div');
+                divider.className = 'section-title';
+                divider.style.marginTop = '2rem';
+                divider.innerText = "Votos Individuais";
+                container.appendChild(divider);
+            }
+
+            // Individual cards
+            data.results.forEach((res, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                <div class="card-header">
+                    <div class="model-name">🤖 ${res.model}</div>
+                    <button class="copy-btn" id="copy-individual-btn-${index}" onclick="copyToClipboard(decodeURIComponent('${encodeURIComponent(res.response)}'), 'copy-individual-btn-${index}')">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        Copiar
+                    </button>
+                </div>
+                <div class="markdown-content">${marked.parse(res.response)}</div>
+            `;
+                container.appendChild(card);
+            });
+
+            // Context
+            if (data.context && data.context.length > 0) {
+                const details = document.createElement('details');
+                details.style.color = "var(--text-muted)";
+                details.style.marginTop = "2rem";
+                details.innerHTML = `
+                <summary style="cursor: pointer">Ver Evidências (Contexto RAG)</summary>
+                <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    ${data.context.map((c, i) => `<div style="margin-bottom:1rem; font-size: 0.9em;"><strong>Trecho ${i + 1}:</strong><br>${c}</div>`).join('')}
+                </div>
+            `;
+                container.appendChild(details);
+            }
+        }
+    </script>
+
+</body>
+
+</html>

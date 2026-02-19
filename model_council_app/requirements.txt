@@ -1,0 +1,7 @@
+flask
+ollama
+numpy
+pypdf2
+python-docx
+requests
+beautifulsoup4
